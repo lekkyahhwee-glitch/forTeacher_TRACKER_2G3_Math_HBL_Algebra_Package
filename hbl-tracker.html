@@ -1,0 +1,553 @@
+<title>HBL Teacher Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600;700&family=Lexend:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one calm column, summary first, detail last.
+   Order = At a glance → Your next steps → What to revisit in class → Students. */
+:root{
+  --bg:#FFEEF3; --panel:#FCDCE7; --card:#FFFFFF; --navy:#15172B; --muted:#5F5A73; --line:#F1C6D5;
+  --good:#1B9A5A; --good-soft:#DDF4E7; --warn:#B87500; --warn-soft:#FFF0CC; --bad:#D6453D; --bad-soft:#FFE1DE;
+  --blue:#2E5BDA; --blue-soft:#E4EBFF; --grey-soft:#EFEAF0;
+  --f-title:"Pixelify Sans","Courier New",monospace; --f-body:"Lexend",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--navy);font-family:var(--f-body);font-size:16px;line-height:1.5;margin:0}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+input,select,textarea{color:var(--navy);-webkit-text-fill-color:var(--navy);background:#fff;border:2px solid var(--navy);border-radius:10px;padding:9px 11px}
+input::placeholder,textarea::placeholder{color:#9A93AA;-webkit-text-fill-color:#9A93AA}
+button{cursor:pointer;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+.wrap{max-width:1080px;margin:0 auto;padding-block:16px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-title);font-size:26px;font-weight:700}
+.top .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.status{font-size:13px;color:var(--muted)}
+.tbtn{border:2px solid var(--navy);background:var(--card);border-radius:999px;padding:6px 14px;font-weight:600;font-size:14px;display:inline-flex;gap:6px;align-items:center}
+.tbtn[aria-pressed="true"]{background:var(--navy);color:#fff}
+.btn{border:2px solid var(--navy);background:var(--navy);color:#fff;border-radius:10px;padding:9px 16px;font-weight:600}
+.btn.ghost{background:var(--card);color:var(--navy)}
+.btn.small{padding:5px 10px;font-size:13px}
+.panel{background:var(--panel);border-radius:18px;padding:18px}
+.card{background:var(--card);border-radius:14px;padding:16px;border:1.5px solid var(--line)}
+.sec-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.sec-h h2{font-size:22px}
+.sec-h .sub{font-size:14px;color:var(--muted)}
+.small{font-size:13px;color:var(--muted)}
+/* teacher tabs */
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.tab{flex:none;border:2px solid var(--navy);background:var(--card);border-radius:12px 12px 4px 4px;padding:8px 16px;font-weight:600}
+.tab[aria-selected="true"]{background:var(--navy);color:#fff}
+.tab .n{font-size:12px;opacity:.75;margin-left:4px}
+.pickrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pickrow label{font-weight:600;font-size:14px}
+.pickrow select{min-width:0;max-width:100%}
+/* glance tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile{background:var(--card);border-radius:14px;padding:14px;border:1.5px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.tile .v{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .l{font-weight:600}
+.tile .d{font-size:13px;color:var(--muted)}
+.tile.good .v{color:var(--good)} .tile.warn .v{color:var(--warn)} .tile.bad .v{color:var(--bad)}
+.tile .stripe{height:6px;border-radius:9px;background:var(--grey-soft);overflow:hidden;margin-top:6px}
+.tile .stripe span{display:block;height:100%;background:var(--good)}
+/* next steps */
+.steps{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;background:var(--card);border-radius:12px;padding:12px 14px;border:1.5px solid var(--line)}
+.steps li::before{counter-increment:s;content:counter(s);width:34px;height:34px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700}
+.steps li.ok::before{content:"✓";background:var(--good)}
+.names{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.name{background:var(--grey-soft);border-radius:999px;padding:2px 10px;font-size:13px;font-weight:500;border:none}
+button.name{cursor:pointer;text-decoration:underline;text-decoration-color:#bbb}
+/* revisit */
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(120px,190px) 1fr 150px;gap:10px;align-items:center;font-size:14px}
+.bar .track{display:block;height:22px;background:var(--grey-soft);border-radius:6px;overflow:hidden;position:relative}
+.bar .fill{display:block;height:100%;border-radius:6px}
+.bar .num{font-variant-numeric:tabular-nums;text-align:right;color:var(--muted);white-space:nowrap}
+.bar .lab{font-weight:600}
+.issues{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:14px}
+.issue{background:var(--card);border-radius:14px;padding:16px;border:1.5px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.issue .rank{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bad)}
+.issue h3{font-size:20px}
+.issue .what{font-size:14px}
+.issue .mistake{background:var(--bad-soft);border-radius:10px;padding:8px 10px;font-size:14px}
+.issue .typed b{font-size:13px}
+.wrongs{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.wrongs span{font-family:"STIX Two Text","Times New Roman",serif;background:#FFF6F4;border:1.5px solid #F3B9B2;border-radius:8px;padding:2px 8px;font-size:15px}
+.wrongs span i{font-family:var(--f-body);font-style:normal;font-size:12px;color:var(--muted);margin-left:4px}
+.board{background:var(--blue-soft);border-radius:12px;padding:10px 12px}
+.board .bq{font-weight:600}
+.board .ba{font-family:"STIX Two Text","Times New Roman",serif;font-size:18px;margin-top:6px}
+.board .ba div{padding:2px 0}
+/* students */
+.filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fchip{border:2px solid var(--navy);background:var(--card);border-radius:999px;padding:5px 12px;font-size:14px;font-weight:600}
+.fchip[aria-pressed="true"]{background:var(--navy);color:#fff}
+.search{margin-left:auto;min-width:0;width:220px;max-width:100%}
+.tablewrap{overflow-x:auto;margin-top:10px;background:var(--card);border-radius:14px;border:1.5px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:2px solid var(--line);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid #F6DCE5;vertical-align:middle;font-variant-numeric:tabular-nums}
+tr.srow{cursor:pointer}
+tr.srow:hover td{background:#FFF7FA}
+.sname{font-weight:600}
+.prog{width:120px;height:10px;background:var(--grey-soft);border-radius:9px;overflow:hidden}
+.prog span{display:block;height:100%;background:var(--blue)}
+.prog.done span{background:var(--good)}
+.score{font-weight:600}
+.score.good{color:var(--good)}.score.warn{color:var(--warn)}.score.bad{color:var(--bad)}
+.flag{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;margin:1px 2px 1px 0;white-space:nowrap}
+.flag.help{background:var(--bad-soft);color:var(--bad)}
+.flag.rush{background:var(--warn-soft);color:var(--warn)}
+.flag.stop{background:var(--grey-soft);color:var(--muted)}
+.flag.done{background:var(--good-soft);color:var(--good)}
+.flag.helped{background:var(--blue-soft);color:var(--blue)}
+.flag.restart{background:#F0E8FF;color:#6B3FD6}
+.detail td{background:#FFF9FB}
+.qgrid{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+.q{min-width:42px;text-align:center;font-size:12px;font-weight:700;border-radius:7px;padding:4px 6px}
+.q.r1{background:var(--good-soft);color:var(--good)}.q.r2{background:var(--warn-soft);color:var(--warn)}.q.rx{background:var(--bad);color:#fff}.q.r0{background:var(--grey-soft);color:#A49DB0}
+.misslist{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.miss{background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px}
+.miss .typed{font-family:"STIX Two Text","Times New Roman",serif;font-size:16px;color:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.empty{color:var(--muted);padding:14px}
+.rename{margin-top:12px;background:#fff;border:1.5px dashed var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.rename input{min-width:0;width:260px;max-width:100%}
+/* help */
+details.help{background:var(--card);border-radius:14px;border:1.5px solid var(--line);padding:12px 16px}
+details.help summary{font-weight:700;cursor:pointer}
+details.help ul{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+/* login */
+.login{max-width:440px;margin:8vh auto 0;display:flex;flex-direction:column;gap:14px}
+.login .card{display:flex;flex-direction:column;gap:12px;padding:22px}
+.msg{font-size:14px;border-radius:10px;padding:8px 10px}
+.msg.bad{background:var(--bad-soft);color:var(--bad)} .msg.good{background:var(--good-soft);color:var(--good)} .msg.warn{background:var(--warn-soft);color:var(--warn)}
+.banner{background:var(--warn-soft);border:1.5px dashed var(--warn);border-radius:12px;padding:10px 14px;font-size:14px}
+textarea{width:100%;min-height:150px;resize:vertical}
+/* present mode */
+body.present .hide-present{display:none!important}
+body.present .issue h3{font-size:26px}
+body.present .board .ba{font-size:24px}
+body.present .board .bq{font-size:20px}
+@media (max-width:600px){.bar{grid-template-columns:96px 1fr auto;font-size:12px}.search{width:100%;margin-left:0}.brand{font-size:22px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+/* =====================================================================
+   SETTINGS — paste the same Apps Script web-app URL as the student site
+   ===================================================================== */
+const BACKEND_URL='https://script.google.com/macros/s/AKfycbyvlQwAicYmU0BAkapuzLPVH2i3V4LWzXlAlJJuneDWiXfrEW9JDY-3j1Dz6RKzcXLv/exec';
+const STORE='hbl-tracker-v1';
+const MISSIONS=[['m1','Expanding Brackets'],['m2','Special Products'],['m3','Factorising by Grouping'],['m4','Factorising Quadratics'],['m5','Multiplying & Dividing Algebraic Fractions'],['m6','Adding & Subtracting Algebraic Fractions'],['m7','Changing the Subject'],['m8','Finding an Unknown in a Formula'],['m9','Solving Quadratic Equations by Factorisation'],['m10','Inequalities'],['m11','Graphs of ax + by = c'],['m12','Simultaneous Equations: Substitution & Elimination'],['m13','Simultaneous Equations: Graphical Method'],['m14','Forming Simultaneous Equations'],['m15','Quadratic Functions & Their Graphs'],['m16','Direct & Inverse Proportion']];
+/* Thresholds (plain-English versions are shown on the page) */
+const T={helpRate:.6,helpMissed:3,rushSecs:10,rushMinutes:25,stopHours:3};
+
+/* ---------- local prefs ---------- */
+let P;try{P=JSON.parse(localStorage.getItem(STORE))||{}}catch(e){P={}}
+function saveP(){try{localStorage.setItem(STORE,JSON.stringify(P))}catch(e){}}
+let pass='';try{pass=sessionStorage.getItem(STORE+'-p')||localStorage.getItem(STORE+'-p')||''}catch(e){}
+P.helped=P.helped||{};
+
+/* ---------- state ---------- */
+let DATA=null,REAL=null,sample=false,present=false,fetchTok=0,pollTimer=null,lastUpdated=null,loading=false,errorMsg='';
+let view={teacher:P.teacher||'',mission:P.mission||'m1',filter:'all',q:'',open:{}};
+
+const $=(s,r=document)=>r.querySelector(s);
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function norm(s){return String(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
+function ago(t){if(!t)return '—';const m=(Date.now()-t)/60000;if(m<2)return 'just now';if(m<60)return Math.round(m)+' min ago';const h=m/60;if(h<24)return Math.round(h)+' h ago';const d=Math.round(h/24);return d+(d===1?' day ago':' days ago')}
+/* show a typed answer the way it would be written: x^2 → x², - → −, spaced signs */
+function pretty(w){const sup={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+  return String(w).replace(/\^(\d+)/g,(_,n)=>n.split('').map(c=>sup[c]).join('')).replace(/\*/g,'×').replace(/(\S)\s*([+\-−])\s*/g,(m,a,o)=>a==='('||a==='='?a+o:a+' '+(o==='-'?'−':o)+' ').replace(/^-/,'−').replace(/\s+/g,' ').trim()}
+/* P4 → Q4 · Part A, W13 → Q13 · Part B, R-P4 → Second Chance for Q4 */
+function roundLabel(r){r=String(r||'');let m;
+  if((m=/^R-([PW])(.+)$/.exec(r)))return 'Second Chance for Q'+m[2];
+  if((m=/^P(.+)$/.exec(r)))return 'Q'+m[1]+' · Part A';
+  if((m=/^W(.+)$/.exec(r)))return 'Q'+m[1]+' · Part B';
+  return r}
+function mins(n){return n<1?'< 1 min':Math.round(n)+' min'}
+function pct(a,b){return b?Math.round(a/b*100):0}
+function median(a){if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y);const m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2}
+function tabName(t){t=String(t||'').trim();if(!t||t==='Not sure yet')return 'Unassigned';return t.replace(/[\[\]\*\?\/\\:]/g,'').slice(0,90)}
+function missionTitle(id){const m=MISSIONS.find(x=>x[0]===id);return m?'Mission '+id.slice(1)+': '+m[1]:id}
+
+/* =====================================================================
+   DATA LOADING
+   ===================================================================== */
+async function getJSON(url){const r=await fetch(url);return r.json()}
+async function loadConfigOnly(){
+  if(!BACKEND_URL)return null;
+  try{const j=await getJSON(BACKEND_URL+'?action=config&t='+Date.now());return j.config}catch(e){return null}
+}
+async function fetchData(){
+  if(sample||!BACKEND_URL||!pass)return;
+  const tok=++fetchTok;loading=true;errorMsg='';renderStatus();
+  const who=view.teacher==='__all'?'__all':(view.teacher||'__all');
+  let j=null;
+  try{j=await getJSON(BACKEND_URL+'?action=data&pass='+encodeURIComponent(pass)+'&teacher='+encodeURIComponent(who)+'&mission='+encodeURIComponent(view.mission)+'&t='+Date.now())}catch(e){}
+  if(sample||tok!==fetchTok)return;           // sample switched on, or a newer request started, while waiting
+  loading=false;
+  if(!j){errorMsg='Could not reach the tracker. It will try again in a minute.';renderStatus();return}
+  if(!j.ok&&j.error==='bad_pass'){logout('The passcode has changed. Please sign in again.');return}
+  REAL=j;DATA=j;lastUpdated=Date.now();
+  const a=document.activeElement;if(a&&(a.classList.contains('rn')||a.id==='search')&&tok>1&&!a.dataset.force){renderStatus();return}
+  render();
+}
+function startPolling(){stopPolling();pollTimer=setInterval(()=>{if(!document.hidden)fetchData()},60000)}
+function stopPolling(){if(pollTimer)clearInterval(pollTimer);pollTimer=null}
+
+/* =====================================================================
+   ANALYSIS — turns raw log rows into per-student summaries and class issues
+   ===================================================================== */
+function toObjects(d){
+  if(!d||!d.rows)return [];
+  const H=d.headers;
+  return d.rows.map(r=>{const o={};H.forEach((h,i)=>o[h]=r[i]);o.t=new Date(o.Timestamp).getTime();return o}).filter(o=>!isNaN(o.t)).sort((a,b)=>a.t-b.t);
+}
+function analyse(d){
+  const rows=toObjects(d).filter(r=>!view.mission||r.MissionId===view.mission||r.Kind==='signin'||r.MissionId==='review');
+  const groups={};
+  rows.forEach(r=>{const k=r.StudentId?'id:'+r.StudentId:norm(r.Student)+'|'+norm(r.CCA);(groups[k]=groups[k]||[]).push(r)});
+  const students=[];
+  Object.keys(groups).forEach(k=>{
+    const all=groups[k];
+    let teacher='';all.forEach(r=>{const t=String(r.Teacher||'').trim();if(t&&t!=='Not sure yet')teacher=t});
+    if(view.teacher&&view.teacher!=='__all'){
+      if(view.teacher==='Unassigned'){if(teacher)return}else if(tabName(teacher)!==tabName(view.teacher))return;
+    }
+    const lastAny=all[all.length-1];
+    const g=all.filter(r=>r.MissionId===view.mission);               // this mission only
+    const home=all.filter(r=>r.MissionId==='review'&&r.Kind==='review');   // Mistake File reviews done from the home page
+    const s={key:k,sid:lastAny.StudentId||'',name:String(lastAny.Student||'').trim()||'(no name)',cca:lastAny.CCA||'',teacher,lastSeen:lastAny.t,home};
+    if(!g.length){Object.assign(s,{notStarted:true,restarts:0,rows:[],progress:0,stage:'',complete:false,practice:{},worksheet:{},remix:{},review:{},
+      p:{n:0,first:0,second:0,missed:0,total:0},w:{n:0,first:0,second:0,missed:0,total:0},medSecs:null,activeMin:0,help:false,rush:false,stopped:false,helped:false,helpedKey:''});
+      students.push(s);return}
+    // pick the attempt to show: the latest one, unless the student finished an earlier one and then reset
+    const byId={};g.forEach(r=>{(byId[r.AttemptId||'-']=byId[r.AttemptId||'-']||[]).push(r)});
+    const ids=Object.keys(byId);const latestId=g[g.length-1].AttemptId||'-';
+    const done=id=>byId[id].some(r=>r.Kind==='complete');
+    let useId=latestId;if(!done(latestId)){const fin=ids.filter(done);if(fin.length)useId=fin[fin.length-1]}
+    const cur=byId[useId];
+    s.restarts=Math.max(0,ids.length-1);s.finishedThenReset=useId!==latestId;s.rows=cur;s.lastSeen=g[g.length-1].t;
+    let maxPage=0,N=0,stage='';
+    cur.forEach(r=>{if(r.Kind==='progress'){const m=/page (\d+)\/(\d+)/.exec(r.Round||'');if(m&&+m[1]>=maxPage){maxPage=+m[1];N=+m[2];stage=r.Skill||stage}}});
+    s.progress=N?maxPage/N:0;s.stage=stage;s.complete=cur.some(r=>r.Kind==='complete');if(s.complete)s.progress=1;
+    const latest=kind=>{const m={};cur.forEach(r=>{if(r.Kind===kind)m[r.Round]=r});return m};
+    s.practice=latest('practice');s.worksheet=latest('worksheet');s.remix=latest('remix');s.review=latest('review');
+    const sum=m=>{const v=Object.values(m);return {n:v.length,first:v.filter(r=>String(r.Attempts)==='1').length,second:v.filter(r=>String(r.Attempts)==='2').length,missed:v.filter(r=>r.Attempts==='missed').length,total:v.length?+v[v.length-1].TotalQuestions||0:0}};
+    s.p=sum(s.practice);s.w=sum(s.worksheet);
+    const secs=Object.values(s.practice).filter(r=>r.Secs!==''&&r.Secs!=null).map(r=>+r.Secs).filter(x=>x>=0);s.medSecs=median(secs);
+    let act=0;for(let i=1;i<cur.length;i++)act+=Math.min(cur[i].t-cur[i-1].t,10*60000);s.activeMin=act/60000;
+    s.help=(s.p.n>=4&&s.p.first/s.p.n<T.helpRate)||(s.p.missed+s.w.missed>=T.helpMissed)||(s.w.n>=5&&s.w.first/s.w.n<.5);
+    s.rush=(s.p.n>=3&&s.medSecs!=null&&s.medSecs<T.rushSecs)||(s.complete&&s.activeMin<T.rushMinutes);
+    s.stopped=!s.complete&&(Date.now()-s.lastSeen)>T.stopHours*3600000;
+    s.helpedKey=view.mission+'|'+k;s.helped=!!P.helped[s.helpedKey];
+    students.push(s);
+  });
+  // class issues by skill
+  const skills={};
+  students.forEach(s=>{[...Object.values(s.practice),...Object.values(s.worksheet)].forEach(r=>{
+    const k=r.Skill||'Other';const o=skills[k]=skills[k]||{skill:k,answered:new Set(),gap:new Set(),wrong:{},qs:{},meta:null,ans:0,bad:0};
+    o.answered.add(s.key);o.ans++;if(String(r.Attempts)!=='1'){o.gap.add(s.key);o.bad++}
+    if(!o.meta&&d.skills&&d.skills[k])o.meta=d.skills[k];
+    if(!o.meta&&r.SkillMeta){try{o.meta=JSON.parse(r.SkillMeta)}catch(e){}}
+    String(r.WrongAnswers||'').split(' | ').map(x=>pretty(x.trim())).filter(Boolean).forEach(w=>{o.wrong[w]=(o.wrong[w]||0)+1});
+    o.qs[r.Round]=r.Question||o.qs[r.Round];
+  })});
+  const issues=Object.values(skills).map(o=>({skill:o.skill,n:o.answered.size,gap:o.gap.size,ans:o.ans,bad:o.bad,rate:o.ans?o.bad/o.ans:0,meta:o.meta,
+    wrong:Object.entries(o.wrong).sort((a,b)=>b[1]-a[1]).slice(0,5),qs:o.qs})).sort((a,b)=>b.rate-a.rate||b.gap-a.gap);
+  return {students,issues};
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function render(){
+  document.body.classList.toggle('present',present);
+  const app=$('#app');
+  if(!sample&&(!BACKEND_URL||!pass)){renderLogin();return}
+  const d=DATA||{rows:[],headers:[],config:{}};
+  const teachers=((d.config||{}).teachers||[]);
+  if(!view.teacher)view.teacher=teachers[0]||'__all';
+  const A=analyse(d);
+  const S=A.students,ns=S.filter(s=>s.notStarted),fin=S.filter(s=>s.complete),work=S.filter(s=>!s.complete&&!s.notStarted),help=S.filter(s=>s.help),rush=S.filter(s=>s.rush),stop=S.filter(s=>s.stopped);
+  const started=S.length-ns.length;
+  const totalP=S.reduce((a,s)=>a+s.p.n,0),firstP=S.reduce((a,s)=>a+s.p.first,0);
+  const who=view.teacher==='__all'?'All teachers':view.teacher==='Unassigned'?'Students without a teacher':view.teacher+"'s students";
+  app.innerHTML=`
+  <div class="top">
+    <div class="brand">${mascot(34)}<span>HBL Tracker</span></div>
+    <div class="right">
+      <span class="status" id="status"></span>
+      <button class="tbtn hide-present" id="refresh" ${sample?'disabled':''}>↻ Refresh</button>
+      <button class="tbtn" id="presentBtn" aria-pressed="${present}">🖥️ Present to Class</button>
+      <button class="tbtn" id="sampleBtn" aria-pressed="${sample}">🎨 Load Sample Data: ${sample?'ON':'OFF'}</button>
+      ${!sample?'<button class="tbtn hide-present" id="logoutBtn">Sign out</button>':''}
+    </div>
+  </div>
+  ${sample?'<div class="banner">You are looking at <b>made-up sample data</b>. Turn off "Load Sample Data" to see your real students.</div>':''}
+  <div class="tabs hide-present" role="tablist" aria-label="Teacher">
+    ${[...teachers,'Unassigned','__all'].map(t=>`<button class="tab" role="tab" data-t="${esc(t)}" aria-selected="${view.teacher===t}">${t==='__all'?'All teachers':t==='Unassigned'?'No teacher yet':esc(t)}</button>`).join('')}
+  </div>
+  <div class="pickrow">
+    <label for="mSel">Mission</label>
+    <select id="mSel">${MISSIONS.map(m=>`<option value="${m[0]}" ${m[0]===view.mission?'selected':''}>${esc(missionTitle(m[0]))}</option>`).join('')}</select>
+    <span class="small">${esc(who)} · ${S.length} signed in</span>
+  </div>
+  <details class="help hide-present" id="help" ${P.helpSeen?'':'open'}>
+    <summary>How to read this page (1 minute)</summary>
+    <ul>
+      <li><b>Pick your name</b> in the tabs at the top, then the mission. Everything below is only about your students.</li>
+      <li><b>At a glance</b> gives you the headline numbers. <b>Your next steps</b> tells you what to do about them, in order.</li>
+      <li><b>What to revisit in class</b> ranks the skills your students found hardest, shows the actual wrong answers they typed, and gives you a board question to use in your next lesson.</li>
+      <li><b>Students</b> lists everyone. Tap a name to see every question they did and what they typed when they got it wrong.</li>
+      <li>The page refreshes itself every minute. <b>Present to Class</b> hides all names so you can show the class results on the projector.</li>
+    </ul>
+  </details>
+
+  <section>
+    <div class="sec-h"><h2>At a glance</h2><span class="sub">${esc(missionTitle(view.mission))}</span></div>
+    <div class="tiles">
+      ${tile('Finished',fin.length,started?'of '+started+' who started':'No one has started yet','good',started?fin.length/started:0)}
+      ${tile('Still working',work.length,stop.length?stop.length+' with no activity for 3+ hours':'Started, not finished yet','')}
+      ${tile('Not started',ns.length,'Signed in to the site, but not opened this mission yet',ns.length?'warn':'')}
+      ${tile('May need help',help.length,'Got under 60% right first time, or missed 3+ questions twice',help.length?'bad':'')}
+      ${tile('May be rushing',rush.length,'Under 10 s per question, or finished in under 25 min',rush.length?'warn':'')}
+      ${tile('Right first time',totalP?pct(firstP,totalP)+'%':'—','Part A (practice) answers right on the first try','')}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-h"><h2>Your next steps</h2><span class="sub">Worked out from your students' answers</span></div>
+    <ol class="steps">${nextSteps(A,S,help,rush,stop).join('')}</ol>
+  </section>
+
+  <section class="panel">
+    <div class="sec-h"><h2>What to revisit in class</h2><span class="sub">Share of answers on each skill that were <b>not</b> right first time (Part A + Part B)</span></div>
+    ${A.issues.length?`<div class="card"><div class="bars">${A.issues.map(i=>`<div class="bar"><span class="lab">${esc(i.skill)}</span><span class="track"><span class="fill" style="width:${Math.max(2,i.rate*100)}%;background:${i.rate>=.5?'var(--bad)':i.rate>=.3?'#E39B00':'var(--good)'}"></span></span><span class="num">${pct(i.bad,i.ans)}% · ${i.gap}/${i.n} students</span></div>`).join('')}</div>
+      <div class="legend"><span><b style="color:var(--bad)">■</b> 50%+ : reteach</span><span><b style="color:#E39B00">■</b> 30–49% : quick recap</span><span><b style="color:var(--good)">■</b> under 30% : mostly fine</span></div></div>
+      <div class="issues">${A.issues.filter(i=>i.n>=2&&i.rate>=.3).slice(0,3).map((i,k)=>issueCard(i,k)).join('')||'<div class="card">No skill stands out yet. Nice work, class!</div>'}</div>`
+      :'<div class="card empty">Nothing to show yet. This fills in as students answer practice and worksheet questions.</div>'}
+  </section>
+
+  <section class="hide-present">
+    <div class="sec-h"><h2>Students</h2><span class="sub">Tap a name for question-by-question detail</span></div>
+    <div class="filters">
+      ${[['all','Everyone',S.length],['ns','Not started',ns.length],['help','May need help',help.length],['rush','May be rushing',rush.length],['stop','Stopped partway',stop.length],['work','Still working',work.length],['done','Finished',fin.length]].map(f=>`<button class="fchip" data-f="${f[0]}" aria-pressed="${view.filter===f[0]}">${f[1]} (${f[2]})</button>`).join('')}
+      <input class="search" id="search" type="search" placeholder="Find a student" value="${esc(view.q)}" aria-label="Find a student">
+    </div>
+    <div class="tablewrap">${studentTable(S)}</div>
+    <div class="legend"><span><span class="flag help">May need help</span> under 60% first-try, or 3+ missed</span><span><span class="flag rush">May be rushing</span> under 10 s per question, or done in under 25 min</span><span><span class="flag stop">Stopped</span> no activity for 3+ hours</span><span><span class="flag restart">Restarted</span> reset their progress</span></div>
+  </section>
+
+  ${d.sheetUrl&&!sample?`<p class="small hide-present">All raw data lives in the <a href="${esc(d.sheetUrl)}" target="_blank" rel="noopener">HBL Google Sheet</a>, one tab per teacher.</p>`:''}`;
+  wire();renderStatus();
+}
+function tile(l,v,d,cls,frac){return `<div class="tile ${cls||''}"><span class="v">${v}</span><span class="l">${l}</span><span class="d">${d}</span>${frac!=null?`<span class="stripe"><span style="width:${Math.round(frac*100)}%"></span></span>`:''}</div>`}
+function namesHTML(list,max){max=max||12;if(present)return '';const sh=list.slice(0,max);return `<div class="names">${sh.map(s=>`<button class="name" data-open="${esc(s.key)}">${esc(s.name)}${s.stage&&!s.complete&&s.stopped?' · stopped at '+esc(s.stage):''}</button>`).join('')}${list.length>max?`<span class="name">+${list.length-max} more</span>`:''}</div>`}
+function nextSteps(A,S,help,rush,stop){
+  const out=[],ns=S.filter(s=>s.notStarted);
+  if(!S.length)return ['<li class="ok"><div><b>No sign-ins yet for this mission.</b><div class="small">Once students start, this list tells you what to do.</div></div></li>'];
+  const top=A.issues.filter(i=>i.n>=3&&i.rate>=.3);
+  if(top.length){const i=top[0];out.push(`<li><div><b>Revisit “${esc(i.skill)}” in your next lesson.</b> ${pct(i.bad,i.ans)}% of answers on it were not right first time, and ${i.gap} of ${i.n} students slipped up at least once.${i.meta&&i.meta.error?' The usual mistake: '+esc(i.meta.error):''}<div class="small">A ready-made board question is in “What to revisit in class” below.</div></div></li>`)}
+  if(top.length>1)out.push(`<li><div><b>Quick recap of ${top.slice(1,3).map(i=>'“'+esc(i.skill)+'”').join(' and ')}.</b> ${top.slice(1,3).map(i=>pct(i.bad,i.ans)+'%').join(' and ')} of answers needed a second try or were missed.</div></li>`);
+  const h=help.filter(s=>!s.helped);
+  if(h.length)out.push(`<li><div><b>Check in with ${h.length} student${h.length>1?'s':''} who may need help.</b> They got under 60% right first time or missed several questions twice. Tap a name to see exactly what they got wrong.${namesHTML(h)}</div></li>`);
+  if(stop.length)out.push(`<li><div><b>Nudge ${stop.length} student${stop.length>1?'s':''} who stopped partway</b> (no activity for 3+ hours).${namesHTML(stop)}</div></li>`);
+  if(ns.length)out.push(`<li><div><b>Remind ${ns.length} student${ns.length>1?'s':''} who signed in but ${ns.length>1?'haven\'t':'hasn\'t'} started this mission.</b>${namesHTML(ns)}</div></li>`);
+  if(rush.length)out.push(`<li><div><b>Have a quick word with ${rush.length} student${rush.length>1?'s':''} who may be rushing.</b> Fast answers often mean guessing; their scores may not show what they really know.${namesHTML(rush)}</div></li>`);
+  if(!out.length)out.push('<li class="ok"><div><b>Nothing urgent.</b> No skill stands out and no student is flagged. Keep going!</div></li>');
+  return out;
+}
+function issueCard(i,k){
+  const m=i.meta||{};
+  return `<div class="issue"><span class="rank">${['Biggest issue','Second issue','Third issue'][k]} · ${pct(i.bad,i.ans)}% of answers wrong first time</span><span class="small" style="margin-top:-6px">${i.gap} of ${i.n} students slipped up at least once</span><h3>${esc(i.skill)}</h3>
+   ${m.explain?`<div class="what"><b>What it is:</b> ${esc(m.explain)}</div>`:''}
+   ${m.error?`<div class="mistake"><b>The usual mistake:</b> ${esc(m.error)}</div>`:''}
+   ${i.wrong.length?`<div class="typed"><b>What your students actually typed</b><div class="wrongs">${i.wrong.map(([w,c])=>`<span>${esc(w)}<i>×${c}</i></span>`).join('')}</div></div>`:''}
+   ${m.board?`<div class="board"><div class="small" style="font-weight:700;color:var(--blue)">BOARD QUESTION FOR CLASS</div><div class="bq">${esc(m.board.q)}</div>
+     <details style="margin-top:6px"><summary class="small" style="cursor:pointer">Show answer</summary><div class="ba">${(m.board.a||[]).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details></div>`:''}
+  </div>`;
+}
+function studentTable(S){
+  const f=view.filter,q=norm(view.q);
+  let L=S.filter(s=>(f==='all')||(f==='ns'&&s.notStarted)||(f==='help'&&s.help)||(f==='rush'&&s.rush)||(f==='stop'&&s.stopped)||(f==='work'&&!s.complete)||(f==='done'&&s.complete));
+  if(q)L=L.filter(s=>norm(s.name).includes(q)||norm(s.cca).includes(q));
+  const sev=s=>(s.help&&!s.helped?0:1)+(s.rush?0:.5)+(s.stopped?0:.3)+(s.complete?.2:0);
+  L.sort((a,b)=>sev(a)-sev(b)||a.name.localeCompare(b.name));
+  if(!L.length)return `<div class="empty">${S.length?'No students match this filter.':'No students have signed in for this mission yet.'}</div>`;
+  const sc=(a,n)=>{if(!n)return '<span class="small">—</span>';const r=a/n;return `<span class="score ${r>=.75?'good':r>=.6?'warn':'bad'}">${a}/${n}</span> <span class="small">(${pct(a,n)}%)</span>`};
+  return `<table><thead><tr><th>Student</th><th>Progress</th><th>Part A right 1st try</th><th>Part B right 1st try</th><th>Time spent</th><th>Last active</th><th>Flags</th></tr></thead><tbody>
+  ${L.map(s=>`<tr class="srow" data-k="${esc(s.key)}" tabindex="0" aria-expanded="${!!view.open[s.key]}"><td><div class="sname">${esc(s.name)}</div><div class="small">${esc(s.cca)}${view.teacher==='__all'&&s.teacher?' · '+esc(s.teacher):''}</div></td>
+    <td>${s.notStarted?'<span class="flag stop">Not started</span>':`<div class="prog ${s.complete?'done':''}"><span style="width:${Math.round(s.progress*100)}%"></span></div><div class="small">${s.complete?'Finished':esc(s.stage||'Started')}</div>`}</td>
+    <td>${sc(s.p.first,s.p.n)}</td><td>${sc(s.w.first,s.w.n)}</td>
+    <td>${mins(s.activeMin)}${s.medSecs!=null?`<div class="small">${Math.round(s.medSecs)} s per question</div>`:''}</td>
+    <td>${ago(s.lastSeen)}</td>
+    <td>${s.help?(s.helped?'<span class="flag helped">Helped ✓</span>':'<span class="flag help">May need help</span>'):''}${s.rush?'<span class="flag rush">May be rushing</span>':''}${s.stopped?'<span class="flag stop">Stopped</span>':''}${s.restarts?`<span class="flag restart">Restarted ${s.restarts}×</span>`:''}${s.complete&&!s.help&&!s.rush?'<span class="flag done">On track</span>':''}</td></tr>
+    ${view.open[s.key]?`<tr class="detail"><td colspan="7">${detailHTML(s)}</td></tr>`:''}`).join('')}
+  </tbody></table>`;
+}
+function detailHTML(s){
+  const chips=(m,prefix,total)=>{let o='';const keys=Object.keys(m);
+    const order=keys.sort((a,b)=>parseFloat(a.replace(/\D+/g,''))-parseFloat(b.replace(/\D+/g,''))||a.localeCompare(b));
+    order.forEach(k=>{const r=m[k];const a=String(r.Attempts);o+=`<span class="q ${a==='1'?'r1':a==='2'?'r2':'rx'}" title="${esc(r.Question||'')}">${esc(k.replace(/^[PW]/,'Q'))}</span>`});
+    for(let i=order.length;i<(total||0);i++)o+='<span class="q r0">·</span>';return o};
+  const misses=[...Object.values(s.practice),...Object.values(s.worksheet),...Object.values(s.remix)].filter(r=>String(r.Attempts)!=='1');
+  return `<div style="display:flex;flex-wrap:wrap;gap:24px">
+    <div><b>Part A · Practice</b><div class="qgrid">${chips(s.practice,'P',s.p.total)}</div></div>
+    <div><b>Part B · Challenge</b><div class="qgrid">${chips(s.worksheet,'W',s.w.total)}</div></div>
+  </div>
+  <div class="legend" style="margin-top:0"><span><span class="q r1">✓</span> right 1st try</span><span><span class="q r2">✓</span> right 2nd try</span><span><span class="q rx">✗</span> wrong twice (saw the working)</span><span><span class="q r0">·</span> not done yet</span></div>
+  ${misses.length?`<div class="misslist">${misses.map(r=>`<div class="miss"><b>${esc(roundLabel(r.Round))}</b> · ${esc(r.Skill)} · ${r.Attempts==='missed'?'<b style="color:var(--bad)">wrong twice</b>':'right on 2nd try'}<div class="small">${esc(r.Question||'')}</div>${r.WrongAnswers?`<div>Typed: <span class="typed">${String(r.WrongAnswers).split(' | ').map(w=>esc(pretty(w))).join(' &nbsp;then&nbsp; ')}</span></div>`:''}</div>`).join('')}</div>`:'<p class="small">No mistakes so far. 🎉</p>'}
+  ${Object.keys(s.remix).length?(()=>{const v=Object.values(s.remix);const f=v.filter(r=>String(r.Attempts)==='1').length;return `<p class="small" style="margin:8px 0 0">🔁 Second Chance: fixed ${f} of ${v.length} on the first try (${v.map(r=>esc(roundLabel(r.Round).replace('Second Chance for ',''))).join(', ')}).</p>`})():''}
+  ${s.home&&s.home.length?`<p class="small" style="margin:8px 0 0">🗂️ Mistake File reviews from the home page: ${s.home.length} question${s.home.length>1?'s':''}, ${s.home.filter(r=>String(r.Attempts)==='1').length} fixed.</p>`:''}
+  ${Object.keys(s.review).length?(()=>{const v=Object.values(s.review);const f=v.filter(r=>String(r.Attempts)==='1').length;return `<p class="small" style="margin:8px 0 0">🗂️ Mistake File warm-up: fixed ${f} of ${v.length} past mistakes (${v.map(r=>esc(r.Skill)).join(', ')}).</p>`})():''}
+  <div class="rename">${s.sid?`<label class="small" for="rn-${esc(s.sid)}"><b>Name shown to everyone</b></label>
+     <div class="pickrow"><input class="rn" id="rn-${esc(s.sid)}" maxlength="40" value="${esc(s.name)}"><button class="btn small" data-rename="${esc(s.sid)}">Save name</button><span class="small" id="rnmsg-${esc(s.sid)}"></span></div>
+     <div class="small">Use this if a name is misspelt or inappropriate. The new name replaces the old one in the Sheet, here, and on the student's own screen (they can't change it back).</div>`
+     :'<div class="small">This student signed in on an older version of the site, so their name can\'t be changed here.</div>'}</div>
+  <div class="pickrow" style="margin-top:10px"><span class="small">Time spent ≈ ${mins(s.activeMin)} · last active ${ago(s.lastSeen)}${s.restarts?` · restarted the mission ${s.restarts}×`:''}${s.finishedThenReset?' (finished it first; showing the finished attempt)':''}</span>
+   ${s.help?`<button class="btn small ${s.helped?'ghost':''}" data-helped="${esc(s.helpedKey)}">${s.helped?'Undo “helped”':'Mark as helped'}</button>`:''}</div>`;
+}
+function renderStatus(){
+  const el=$('#status');if(!el)return;
+  el.textContent=sample?'Sample data':errorMsg?errorMsg:loading&&!lastUpdated?'Loading…':lastUpdated?'Updated '+new Date(lastUpdated).toLocaleTimeString('en-SG',{hour:'numeric',minute:'2-digit'})+' · refreshes every minute':'';
+}
+function wire(){
+  const on=(s,ev,fn)=>{const e=$(s);if(e)e[ev]=fn};
+  on('#refresh','onclick',()=>fetchData());
+  on('#presentBtn','onclick',()=>{present=!present;render()});
+  on('#sampleBtn','onclick',()=>setSample(!sample));
+  on('#logoutBtn','onclick',()=>logout(''));
+  on('#mSel','onchange',e=>{view.mission=e.target.value;P.mission=view.mission;saveP();view.open={};if(sample){DATA=makeSample();render()}else{render();fetchData()}});
+  on('#search','oninput',e=>{view.q=e.target.value;const pos=e.target.selectionStart;render();const s=$('#search');s.focus();try{s.setSelectionRange(pos,pos)}catch(_){}});
+  on('#help','ontoggle',()=>{P.helpSeen=true;saveP()});
+  document.querySelectorAll('[data-rename]').forEach(b=>b.onclick=e=>{e.stopPropagation();renameStudent(b.dataset.rename)});
+  document.querySelectorAll('input.rn').forEach(i=>{i.onclick=e=>e.stopPropagation();i.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')renameStudent(i.id.slice(3))}});
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{view.teacher=b.dataset.t;P.teacher=view.teacher;saveP();view.open={};render();if(!sample)fetchData()});
+  document.querySelectorAll('.fchip').forEach(b=>b.onclick=()=>{view.filter=b.dataset.f;render()});
+  document.querySelectorAll('tr.srow').forEach(r=>{const t=()=>{view.open[r.dataset.k]=!view.open[r.dataset.k];render()};r.onclick=t;r.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}}});
+  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{view.filter='all';view.q='';view.open={};view.open[b.dataset.open]=true;render();const r=document.querySelector(`tr.srow[data-k="${CSS.escape(b.dataset.open)}"]`);if(r)r.scrollIntoView({behavior:'smooth',block:'center'})});
+  document.querySelectorAll('[data-helped]').forEach(b=>b.onclick=e=>{e.stopPropagation();const k=b.dataset.helped;if(P.helped[k])delete P.helped[k];else P.helped[k]=Date.now();saveP();render()});
+}
+/* ---------- rename a student (teacher) ---------- */
+async function renameStudent(sid){
+  const inp=document.getElementById('rn-'+sid),msg=document.getElementById('rnmsg-'+sid);
+  const name=inp.value.trim().replace(/\s+/g,' ');if(!name){msg.textContent='Type a name first.';return}
+  const sidIdx=(DATA.headers||[]).indexOf('StudentId'),nameIdx=(DATA.headers||[]).indexOf('Student');
+  inp.blur();
+  if(sample){(DATA.rows||[]).forEach(r=>{if(r[sidIdx]===sid)r[nameIdx]=name});render();return}
+  msg.textContent='Saving…';
+  try{await fetch(BACKEND_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'rename',pass,sid,name})})}catch(e){}
+  await fetchData();
+  const ok=(DATA.rows||[]).some(r=>r[sidIdx]===sid&&r[nameIdx]===name);
+  const m=document.getElementById('rnmsg-'+sid);if(m)m.textContent=ok?'✓ Renamed everywhere':'Could not save. Check your connection and try again.';
+}
+
+/* ---------- login ---------- */
+function renderLogin(msg){
+  $('#app').innerHTML=`<div class="login">
+   <div class="brand" style="justify-content:center">${mascot(44)}<span>HBL Tracker</span></div>
+   <div class="card">
+     <h2 style="font-size:22px">Teacher sign-in</h2>
+     ${BACKEND_URL?`<label for="pw" class="small">HBL passcode (the same one as the teacher panel)</label>
+     <input id="pw" type="password" autocomplete="current-password" placeholder="Passcode">
+     <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="rem" style="width:20px;height:20px"> Keep me signed in on this device</label>
+     <button class="btn" id="go">Sign in</button>`:'<div class="msg warn">The tracker is not connected yet. You can still look around with sample data.</div>'}
+     <div class="msg" id="lmsg" ${msg?'':'hidden'}>${esc(msg||'')}</div>
+     <button class="btn ghost" id="trySample">Look around with sample data</button>
+   </div></div>`;
+  const go=$('#go');
+  if(go){const submit=async()=>{const v=$('#pw').value.trim();const m=$('#lmsg');if(!v)return;m.hidden=false;m.className='msg';m.textContent='Checking…';
+      let ok=null;try{ok=(await getJSON(BACKEND_URL+'?action=checkPass&pass='+encodeURIComponent(v)+'&t='+Date.now())).ok}catch(e){}
+      if(ok){pass=v;try{($('#rem').checked?localStorage:sessionStorage).setItem(STORE+'-p',v)}catch(e){}
+        const cfg=await loadConfigOnly();DATA={rows:[],headers:[],config:cfg||{}};render();fetchData();startPolling()}
+      else{m.className='msg bad';m.textContent=ok===false?'That passcode is not right.':'Could not reach the tracker. Check your connection.'}};
+    go.onclick=submit;$('#pw').onkeydown=e=>{if(e.key==='Enter')submit()}}
+  $('#trySample').onclick=()=>setSample(true);
+}
+function logout(msg){pass='';try{sessionStorage.removeItem(STORE+'-p');localStorage.removeItem(STORE+'-p')}catch(e){}stopPolling();DATA=null;REAL=null;renderLogin(msg)}
+
+/* ---------- sample data toggle (pauses live polling while ON) ---------- */
+function setSample(onFlag){
+  sample=onFlag;
+  if(sample){stopPolling();fetchTok++;REAL=DATA&&DATA.rows&&DATA.rows.length?DATA:REAL;DATA=makeSample();if(!view.teacher||view.teacher==='__all'||view.teacher==='Unassigned'||!DATA.config.teachers.includes(view.teacher))view.teacher='Ms Lek';render();return}
+  view.teacher=P.teacher||'';view.open={};
+  DATA=REAL;render();
+  if(BACKEND_URL&&pass){fetchData();startPolling()}
+}
+
+/* =====================================================================
+   SAMPLE DATA — same row format as the real tracker, so it exercises the real code path
+   ===================================================================== */
+function makeSample(){
+  let seed=42;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;const pick=a=>a[Math.floor(rnd()*a.length)];
+  const H=['Timestamp','Teacher','CCA','Student','Mission','MissionId','Kind','Round','Skill','Question','Attempts','Correct','WrongAnswers','Secs','TotalQuestions','Score','AttemptId','Device','SkillMeta','StudentId'];
+  const STAGES=['Brief','Brief','Warm-up','Hook','Define','Concepts','Concepts','Concepts','Concepts','Traps','Worked','Worked','Worksheet',...Array(12).fill('Part A'),'Part B','2nd Chance','Summary','Summary'];
+  const PQ=[['Each × each','Expand (x + 4)(x + 3).',['x² + 12','x² + 7x + 7']],['Signs','Expand (x − 6)(x + 2).',['x² + 4x − 12','x² − 4x + 12','x² − 8x − 12']],['Signs','Which is the expansion of (2x + 5)(x − 1)?',['2x² − 3x − 5','2x² + 7x − 5']],['Area model','Rectangle (2x + 1) cm by (x + 5) cm: find its area.',['3x + 6','2x² + 10x + 5']],['Signs','Expand (3y − 2)(2y − 5).',['6y² − 19y − 10','6y² − 11y + 10']],['Two letters','Expand (x + 2y)(x − 3y).',['x² + xy − 6y²','x² − 5xy − 6y²']],['Spot the error','Mei wrote (x + 7)² = x² + 49. What went wrong?',['Nothing, her answer is correct','7² should be 14, not 49']],['Expand & simplify','Expand and simplify (x + 3)(x + 4) − x(x + 2).',['9x + 12','2x² + 5x + 12','5x + 10']],['Expand & simplify','Expand 3(x − 1)(x + 2).',['9x² + 9x − 18','3x² + x − 2']],['Work backwards','(x + k)(x + 3) = x² + 8x + 15. Find k.',['15','3']],['Bigger brackets','Expand and simplify (x − 1)(x² + 4x − 2).',['x³ + 3x² − 6x − 2','x³ + 5x² + 2x + 2']],['Spot the pattern','Which expression has no x-term after expanding?',['(x + 4)(x − 2)','(x − 4)(x − 4)']]];
+  const WQ=[['13','Each × each','Expand (x + 6)(x + 2).',['x² + 12']],['14','Signs','Expand (a − 3)(a + 8).',['a² + 5a + 24','a² − 5a − 24']],['15','Signs','Expand (2p − 5)(3p − 1).',['6p² − 17p − 5','6p² − 13p + 5']],['16','Two letters','Expand (3x + 2y)(x − 4y).',['3x² − 10xy + 8y²']],['17','Expand & simplify','Expand and simplify (x + 4)(x − 2) − (x − 3)(x + 1).',['4x − 11','2x² + 4x − 5']],['18','Bigger brackets','Expand and simplify (x + 2)(x² − 3x + 4).',['x³ − x² + 8']],['19','Area model','Lawn (2x + 3) by (x + 4) with a square bed of side x removed.',['2x² + 11x + 12']],['20(a)','Work backwards','(2x + a)(x − 3) = 2x² + bx − 15. Find a.',['−5']],['20(b)','Work backwards','Find b.',['1','−9']]];
+  const META={'Each × each':{explain:'Every term in the first bracket multiplies every term in the second: 2 terms × 2 terms = 4 products.',error:'Multiplies only first × first and last × last, e.g. (x + 3)(x + 2) = x² + 6.',board:{q:'Expand (x + 5)(x + 4).',a:['= x² + 4x + 5x + 20','= x² + 9x + 20']}},
+   'Signs':{explain:'The sign belongs to the term after it. Same signs give +, different signs give −.',error:'Wrong sign on the number term or the middle term, e.g. (x − 4)(x + 5) ending in + 20.',board:{q:'Expand (x − 3)(x + 7).',a:['= x² + 7x − 3x − 21','= x² + 4x − 21']}},
+   'Expand & simplify':{explain:'Expand each product on its own line, keep a bracket after a minus sign, then collect like terms.',error:'The minus sign only changes the first term of the second expansion, or a number outside is multiplied into both brackets.',board:{q:'Simplify (x + 2)(x + 5) − x(x + 3).',a:['= x² + 7x + 10 − (x² + 3x)','= x² + 7x + 10 − x² − 3x','= 4x + 10']}},
+   'Bigger brackets':{explain:'2 terms × 3 terms = 6 products. Add powers of the same letter: x × x² = x³.',error:'Misses some of the 6 products, or writes x × x² as x² or 2x³.',board:{q:'Expand (x + 1)(x² + 3x + 2).',a:['= x³ + 3x² + 2x + x² + 3x + 2','= x³ + 4x² + 5x + 2']}},
+   'Area model':{explain:'The area of a rectangle with bracket sides is the product of the brackets.',error:'Adds the two sides instead of multiplying, or forgets to subtract a cut-out part.',board:{q:'A rectangle is (2x + 1) cm by (x + 2) cm. Find its area.',a:['= (2x + 1)(x + 2)','= 2x² + 4x + x + 2','= 2x² + 5x + 2 cm²']}},
+   'Two letters':{explain:'Treat terms like 2y as one term. Collect the xy-terms together.',error:'Leaves −3xy + 2xy uncollected, or writes y × y as 2y.',board:{q:'Expand (a + 3b)(a − 2b).',a:['= a² − 2ab + 3ab − 6b²','= a² + ab − 6b²']}},
+   'Work backwards':{explain:'Expand with the unknown still as a letter, then match each term.',error:'Matches the wrong pair of terms.',board:{q:'(x + k)(x + 5) = x² + 9x + 20. Find k.',a:['(x + k)(x + 5) = x² + (5 + k)x + 5k','5k = 20','k = 4']}},
+   'Spot the error':{explain:'(x + a)² means (x + a)(x + a).',error:'Squares each term separately: (x + 7)² = x² + 49.',board:{q:'Expand (x + 6)².',a:['= (x + 6)(x + 6)','= x² + 6x + 6x + 36','= x² + 12x + 36']}},
+   'Spot the pattern':{explain:'In (x + a)(x − a) the middle terms cancel.',error:'Thinks any pair of brackets can have no x-term.',board:{q:'Expand (x + 9)(x − 9).',a:['= x² − 9x + 9x − 81','= x² − 81']}}};
+  const weak={'Signs':.3,'Expand & simplify':.35,'Bigger brackets':.15};
+  const ccas=['AV','BA','BB','BL','BN','CA','CD','CH','CO','MD','MT','NC','ND','NE','NP','SJ'];
+  const lek=['Tan Wei Ling','Muhammad Irfan','Chloe Lim','Arjun Nair','Nur Aisyah','Ryan Goh','Siti Nurhaliza','Ethan Koh','Priya Ramesh','Jayden Ong','Hannah Teo','Daniel Wong','Zara Ismail','Marcus Lee','Kayla Chua','Aaron Yeo','Farah Hakim','Isaac Seah','Megan Ho','Dinesh Kumar','Bryan Toh','Alicia Ng'];
+  const tan=['Lucas Pang','Amirah Zul','Gabriel Sim','Sophia Liew','Haziq Rahman','Natalie Quek','Joel Fernandez','Rachel Yap'];
+  const profiles={'Muhammad Irfan':'struggle','Ryan Goh':'rush','Ethan Koh':'stop','Zara Ismail':'struggle','Jayden Ong':'rush','Aaron Yeo':'stop','Megan Ho':'half','Bryan Toh':'none','Alicia Ng':'none','Daniel Wong':'restart'};
+  const rows=[];const now=Date.now();
+  const make=(name,teacher,profile)=>{
+    const cca=pick(ccas);const id='s'+Math.floor(rnd()*1e8);const sid='st'+Math.floor(rnd()*1e9).toString(36)+'x';
+    let t=now-(profile==='stop'?3.2*86400000:(1+rnd()*5)*3600000);
+    const add=(kind,round,skill,extra)=>{const o=Object.assign({Timestamp:new Date(t).toISOString(),Teacher:teacher,CCA:cca,Student:name,Mission:'M1 Expanding Brackets',MissionId:'m1',Kind:kind,Round:round,Skill:skill,Question:'',Attempts:'',Correct:'',WrongAnswers:'',Secs:'',TotalQuestions:'',Score:'',AttemptId:id,Device:'',SkillMeta:'',StudentId:sid},extra||{});rows.push(H.map(h=>o[h]))};
+    add('signin','signed in','',{MissionId:'',Mission:'',AttemptId:''});t+=30000;
+    if(profile==='none')return;
+    if(profile==='restart'){add('progress','page 1/29','Brief',{AttemptId:id+'a'});t+=60000;add('progress','page 6/29','Concepts',{AttemptId:id+'a'});t+=3600000}
+    const lastPage=profile==='stop'?9:profile==='half'?18:29;
+    const ability=profile==='struggle'?.4:profile==='rush'?.55:.86+rnd()*.12;
+    const speed=profile==='rush'?.15:1;
+    for(let pgi=1;pgi<=lastPage;pgi++){
+      t+=(profile==='rush'?20000:90000+rnd()*120000);
+      add('progress','page '+pgi+'/29',STAGES[pgi-1]);
+      if(pgi>=14&&pgi<=25){const qi=pgi-14;const [sk,q,wr]=PQ[qi];const p=Math.max(.05,ability-(weak[sk]||0)*(profile==='struggle'?.6:1)+(rnd()-.5)*.2);
+        const r=rnd()<p?'1':rnd()<.5?'2':'missed';const secs=Math.round((profile==='rush'?4+rnd()*5:25+rnd()*70));t+=secs*1000;
+        add('practice','P'+(qi+1),sk,{Question:q,Attempts:r==='missed'?'missed':+r,Correct:r!=='missed',WrongAnswers:r==='1'?'':pick(wr)+(r==='missed'?' | '+pick(wr):''),Secs:secs,TotalQuestions:12,SkillMeta:JSON.stringify(META[sk])});}
+      if(pgi===26){WQ.forEach(([lab,sk,q,wr])=>{const p=Math.max(.05,ability-(weak[sk]||0)*.8+(rnd()-.5)*.2);const r=rnd()<p?'1':rnd()<.5?'2':'missed';t+=40000;
+        add('worksheet','W'+lab,sk,{Question:q,Attempts:r==='missed'?'missed':+r,Correct:r!=='missed',WrongAnswers:r==='1'?'':pick(wr),Secs:20,TotalQuestions:9,SkillMeta:JSON.stringify(META[sk])})})}
+    }
+    if(lastPage===29){t+=30000;add('complete','mission complete','',{Correct:true,TotalQuestions:21})}
+  };
+  lek.forEach(n=>make(n,'Ms Lek',profiles[n]||'normal'));tan.forEach((n,i)=>make(n,'Mr Tan',i===2?'struggle':'normal'));
+  make('Kenneth Lau','','normal');
+  // filter like the backend does for the selected teacher + mission
+  const out=rows.filter(r=>r[5]===view.mission||r[6]==='signin');
+  return {ok:true,headers:H,rows:out,skills:META,config:{teachers:['Ms Lek','Mr Tan']},sheetUrl:''};
+}
+
+/* ---------- mascot (same as the student site) ---------- */
+function mascot(px){const MAP=["....hhhh....","...hhhhhh...","..oooooooo..",".obbbbbbbbo.","obbwwbbwwbbo","obbwkbbwkbbo","obcbbbbbbcbo","obbbbkkbbbbo",".obbbbbbbbo.","..obbbbbbo..","..ob....bo..","..oo....oo.."];
+  const col={o:'#15172B',b:'#EE5A3C',w:'#FFFFFF',k:'#15172B',c:'#FF9BB5'};let r='';
+  MAP.forEach((row,y)=>[...row].forEach((ch,x)=>{if(col[ch])r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${col[ch]}"/>`}));
+  return `<svg viewBox="0 0 12 12" width="${px}" height="${px}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`}
+
+/* ---------- boot ---------- */
+(async function boot(){
+  if(BACKEND_URL&&pass){const cfg=await loadConfigOnly();DATA={rows:[],headers:[],config:cfg||{}};render();fetchData();startPolling()}
+  else render();
+})();
+setInterval(renderStatus,30000);
+</script>
